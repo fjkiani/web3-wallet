@@ -55,20 +55,75 @@ export const TransactionsProvider = ({ children }) => {
 
   const checkIfWalletIsConnect = async () => {
     try {
-      if (!ethereum) return alert("Please install MetaMask.");
+      if (!ethereum) {
+        console.log("Please install MetaMask");
+        return;
+      }
+
+      // Check if we're on the right network
+      const chainId = await ethereum.request({ method: 'eth_chainId' });
+      if (chainId !== '0xaa36a7') { // Sepolia chainId
+        try {
+          await ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0xaa36a7' }], // Sepolia
+          });
+        } catch (switchError) {
+          console.log("Network switch error:", switchError);
+        }
+      }
 
       const accounts = await ethereum.request({ method: "eth_accounts" });
+      console.log("Available accounts:", accounts);
 
       if (accounts.length) {
-        setCurrentAccount(accounts[0]);
-
+        const account = accounts[0];
+        console.log("Found authorized account:", account);
+        setCurrentAccount(account);
+        localStorage.setItem("currentAccount", account); // Save to localStorage
         getAllTransactions();
       } else {
-        console.log("No accounts found");
+        // Try to recover from localStorage
+        const savedAccount = localStorage.getItem("currentAccount");
+        if (savedAccount) {
+          setCurrentAccount(savedAccount);
+          getAllTransactions();
+        } else {
+          console.log("No authorized account found");
+        }
       }
+
+      // Add event listener for account changes
+      ethereum.on('accountsChanged', handleAccountsChanged);
+      ethereum.on('chainChanged', handleChainChanged);
+
+      return () => {
+        ethereum.removeListener('accountsChanged', handleAccountsChanged);
+        ethereum.removeListener('chainChanged', handleChainChanged);
+      };
     } catch (error) {
-      console.log(error);
+      console.log("Error checking wallet connection:", error);
+      throw error;
     }
+  };
+
+  const handleAccountsChanged = (accounts) => {
+    if (accounts.length === 0) {
+      // User has disconnected their wallet
+      setCurrentAccount("");
+      localStorage.removeItem("currentAccount");
+      console.log("Please connect to MetaMask.");
+    } else if (accounts[0] !== currentAccount) {
+      // User has switched accounts
+      setCurrentAccount(accounts[0]);
+      localStorage.setItem("currentAccount", accounts[0]);
+      getAllTransactions();
+    }
+  };
+
+  const handleChainChanged = () => {
+    // Handle chain changes by reloading the page
+    window.location.reload();
   };
 
   const checkIfTransactionsExists = async () => {
@@ -88,16 +143,32 @@ export const TransactionsProvider = ({ children }) => {
 
   const connectWallet = async () => {
     try {
-      if (!ethereum) return alert("Please install MetaMask.");
+      if (!ethereum) {
+        alert("Please install MetaMask.");
+        return;
+      }
 
-      const accounts = await ethereum.request({ method: "eth_requestAccounts", });
-
-      setCurrentAccount(accounts[0]);
-      window.location.reload();
+      const accounts = await ethereum.request({ method: "eth_requestAccounts" });
+      const account = accounts[0];
+      console.log("Connected to account:", account);
+      
+      setCurrentAccount(account);
+      localStorage.setItem("currentAccount", account);
+      getAllTransactions();
     } catch (error) {
-      console.log(error);
+      console.log("Error connecting wallet:", error);
+      throw error;
+    }
+  };
 
-      throw new Error("No ethereum object");
+  const disconnectWallet = () => {
+    try {
+      setCurrentAccount("");
+      localStorage.removeItem("currentAccount");
+      setTransactions([]);
+      console.log("Wallet disconnected");
+    } catch (error) {
+      console.log("Error disconnecting wallet:", error);
     }
   };
 
@@ -140,16 +211,24 @@ export const TransactionsProvider = ({ children }) => {
     }
   };
 
+  // Initialize wallet connection check
   useEffect(() => {
     checkIfWalletIsConnect();
-    checkIfTransactionsExists();
-  }, [transactionCount]);
+  }, []);
+
+  // Separate effect for transaction existence check
+  useEffect(() => {
+    if (currentAccount) {
+      checkIfTransactionsExists();
+    }
+  }, [currentAccount]);
 
   return (
     <TransactionContext.Provider
       value={{
         transactionCount,
         connectWallet,
+        disconnectWallet,
         transactions,
         currentAccount,
         isLoading,

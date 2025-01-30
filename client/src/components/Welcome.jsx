@@ -1,7 +1,8 @@
 import React, { useContext } from "react";
 import { AiFillPlayCircle } from "react-icons/ai";
 import { SiEthereum } from "react-icons/si";
-import { BsInfoCircle } from "react-icons/bs";
+import { BsInfoCircle, BsShieldFillCheck, BsKey, BsGlobe, BsLightningCharge } from "react-icons/bs";
+import { BiMoney } from "react-icons/bi";
 
 import { TransactionContext } from "../context/TransactionContext";
 import { shortenAddress } from "../utils/shortenAddress";
@@ -20,15 +21,57 @@ const Input = ({ placeholder, name, type, value, handleChange }) => (
   />
 );
 
+const FeatureBox = ({ title, description, isFirst, isLast, position }) => {
+  const positionClasses = {
+    'tl': 'rounded-tl-2xl',
+    'tr': 'sm:rounded-tr-2xl',
+    'bl': 'sm:rounded-bl-2xl',
+    'br': 'rounded-br-2xl',
+  };
+
+  return (
+    <div 
+      className={`
+        ${companyCommonStyles}
+        ${position ? positionClasses[position] : ''}
+        flex flex-col items-center justify-center p-4
+        hover:bg-[#2952e3]/20 transition-all duration-300
+        group
+      `}
+    >
+      <div className="mb-2 text-[#37c7da] group-hover:scale-110 transition-transform duration-300">
+        {title === "Security" && <BsShieldFillCheck fontSize={24} />}
+        {title === "Blockchain" && <SiEthereum fontSize={24} />}
+        {title === "Low Fees" && <BiMoney fontSize={24} />}
+        {title === "Speed" && <BsLightningCharge fontSize={24} />}
+        {title === "Control" && <BsKey fontSize={24} />}
+        {title === "Future" && <BsGlobe fontSize={24} />}
+      </div>
+      <h3 className="text-white font-semibold mb-1">{title}</h3>
+      <p className="text-gray-400 text-xs text-center hidden group-hover:block transition-all duration-300">
+        {description}
+      </p>
+    </div>
+  );
+};
+
 const Welcome = () => {
-  const { currentAccount, connectWallet, handleChange, sendTransaction, formData, isLoading } = useContext(TransactionContext);
+  const { currentAccount, connectWallet, disconnectWallet, handleChange, sendTransaction, formData, isLoading } = useContext(TransactionContext);
 
   const handleSubmit = (e) => {
     const { addressTo, amount, keyword, message } = formData;
 
     e.preventDefault();
 
-    if (!addressTo || !amount || !keyword || !message) return;
+    if (!currentAccount) {
+      alert("Please connect your wallet first");
+      return;
+    }
+
+    if (!addressTo || !amount || !keyword || !message) {
+      alert("Please fill in all fields");
+      return;
+    }
 
     sendTransaction();
   };
@@ -43,34 +86,71 @@ const Welcome = () => {
           <p className="text-left mt-5 text-white font-light md:w-9/12 w-11/12 text-base">
             Explore the crypto world. Buy and sell cryptocurrencies easily on Krypto.
           </p>
-          {!currentAccount && (
-            <button
-              type="button"
-              onClick={connectWallet}
-              className="flex flex-row justify-center items-center my-5 bg-[#2952e3] p-3 rounded-full cursor-pointer hover:bg-[#2546bd]"
-            >
-              <AiFillPlayCircle className="text-white mr-2" />
-              <p className="text-white text-base font-semibold">
-                Connect Wallet
-              </p>
-            </button>
-          )}
+          
+          <div className="flex flex-col w-full justify-start items-start">
+            {!currentAccount ? (
+              <button
+                type="button"
+                onClick={connectWallet}
+                className="flex flex-row justify-center items-center my-5 bg-[#2952e3] p-3 rounded-full cursor-pointer hover:bg-[#2546bd] w-full md:w-auto"
+              >
+                <AiFillPlayCircle className="text-white mr-2" />
+                <p className="text-white text-base font-semibold">
+                  Connect MetaMask Wallet
+                </p>
+              </button>
+            ) : (
+              <div className="flex flex-col w-full md:w-auto gap-2 my-5">
+                <div className="flex items-center justify-between bg-[#2952e3] px-4 py-2 rounded-full">
+                  <div className="flex items-center">
+                    <SiEthereum className="text-white mr-2" />
+                    <p className="text-white text-sm font-medium">
+                      Connected: {shortenAddress(currentAccount)}
+                    </p>
+                  </div>
+                  <button
+                    onClick={disconnectWallet}
+                    className="ml-4 bg-[#dc2626] hover:bg-[#b91c1c] text-white px-3 py-1 rounded-full text-sm transition-colors duration-200"
+                  >
+                    Disconnect
+                  </button>
+                </div>
+                <p className="text-green-400 text-sm">
+                  ✓ Wallet Connected to Sepolia Network
+                </p>
+              </div>
+            )}
+          </div>
 
-          <div className="grid sm:grid-cols-3 grid-cols-2 w-full mt-10">
-            <div className={`rounded-tl-2xl ${companyCommonStyles}`}>
-              Reliability
-            </div>
-            <div className={companyCommonStyles}>Security</div>
-            <div className={`sm:rounded-tr-2xl ${companyCommonStyles}`}>
-              Ethereum
-            </div>
-            <div className={`sm:rounded-bl-2xl ${companyCommonStyles}`}>
-              Web 3.0
-            </div>
-            <div className={companyCommonStyles}>Low Fees</div>
-            <div className={`rounded-br-2xl ${companyCommonStyles}`}>
-              Blockchain
-            </div>
+          <div className="grid sm:grid-cols-3 grid-cols-2 w-full mt-10 gap-2">
+            <FeatureBox 
+              title="Security" 
+              description="Military-grade encryption protects your assets"
+              position="tl"
+            />
+            <FeatureBox 
+              title="Control" 
+              description="Be your own bank with full asset control"
+            />
+            <FeatureBox 
+              title="Speed" 
+              description="Lightning-fast blockchain transactions"
+              position="tr"
+            />
+            <FeatureBox 
+              title="Low Fees" 
+              description="Minimal transaction costs on Ethereum"
+              position="bl"
+            />
+            <FeatureBox 
+              title="Blockchain" 
+              description="Immutable and transparent ledger"
+            />
+            <FeatureBox 
+              title="Future" 
+              description="Be part of the Web3 revolution"
+              position="br"
+            />
           </div>
         </div>
 
